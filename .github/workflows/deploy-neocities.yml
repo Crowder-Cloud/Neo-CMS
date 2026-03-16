@@ -74,3 +74,14 @@ jobs:
               -F "${file}=@${file}" \
               "${api_url}" >/dev/null
           done
+
+          # Upload generated files that are intentionally gitignored
+          for generated in feed.xml sitemap.xml; do
+            if [ -f "${generated}" ]; then
+              echo "Uploading ${generated}"
+              curl --fail --silent --show-error \
+                -H "Authorization: Bearer ${NEOCITIES_API_KEY}" \
+                -F "${generated}=@${generated}" \
+                "${api_url}" >/dev/null
+            fi
+          done
