@@ -8,6 +8,10 @@ const siteTitle = document.getElementById("site-title");
 const siteTagline = document.getElementById("site-tagline");
 const siteFooter = document.getElementById("site-footer");
 const webmentions = document.getElementById("webmentions");
+const metaDescription = document.querySelector('meta[name="description"]');
+const ogTitle = document.querySelector('meta[property="og:title"]');
+const ogDescription = document.querySelector('meta[property="og:description"]');
+const ogUrl = document.querySelector('meta[property="og:url"]');
 
 let manifest = null;
 let pages = [];
@@ -19,6 +23,7 @@ const cacheNamespace = "neo-cms-cache:v1:";
 const indieweb = {
   siteUrl: "",
   webmentionEndpoint: "",
+  author: { name: "", url: "", photo: "" },
 };
 
 const readHeadLink = (rel) => {
@@ -351,6 +356,59 @@ const getPageUrl = (page, slug) => {
   return `${baseUrl}#${slug}`;
 };
 
+const updateMetaTags = (page, slug) => {
+  const siteT = manifest?.site?.title || "Neo-CMS";
+  const pageT = page?.title;
+  document.title = pageT ? `${pageT} | ${siteT}` : siteT;
+
+  const desc = page?.description || manifest?.site?.tagline || "";
+  if (metaDescription) metaDescription.setAttribute("content", desc);
+  if (ogTitle) ogTitle.setAttribute("content", pageT || siteT);
+  if (ogDescription) ogDescription.setAttribute("content", desc);
+
+  if (ogUrl) {
+    const url = getPageUrl(page, slug);
+    ogUrl.setAttribute("content", url || window.location.href);
+  }
+};
+
+const renderHCard = () => {
+  const card = document.querySelector(".brand-card");
+  if (!card) return;
+  card.classList.add("h-card");
+  if (card.querySelector(".p-name")) return; // idempotency guard
+  const { name, url, photo } = indieweb.author;
+  if (name || url) {
+    const anchor = document.createElement("a");
+    anchor.className = "p-name u-url";
+    anchor.rel = "me";
+    anchor.style.display = "none";
+    anchor.setAttribute("aria-hidden", "true");
+    anchor.textContent = name;
+    anchor.href = url;
+    card.appendChild(anchor);
+  }
+  if (photo) {
+    const img = document.createElement("img");
+    img.className = "u-photo";
+    img.src = photo;
+    img.style.display = "none";
+    img.setAttribute("aria-hidden", "true");
+    card.appendChild(img);
+  }
+};
+
+const renderHEntry = (html, page, slug) => {
+  const title = page?.title || "";
+  const url = getPageUrl(page, slug) || "";
+  const date = page?.meta?.date || "";
+  const dateAttr =
+    date && /^\d{4}-\d{2}-\d{2}/.test(date)
+      ? `<time class="dt-published" datetime="${escapeHtml(date)}" style="display:none" aria-hidden="true"></time>`
+      : "";
+  return `<div class="h-entry"><span class="p-name" style="display:none" aria-hidden="true">${escapeHtml(title)}</span><a class="u-url" href="${escapeHtml(url)}" style="display:none" aria-hidden="true"></a>${dateAttr}<div class="e-content">${html}</div></div>`;
+};
+
 const getMentionType = (mention) => {
   const property = mention["wm-property"];
   const map = {
@@ -557,6 +615,7 @@ const loadPage = async () => {
   }
 
   markActiveLink(page ? page.route : slug);
+  updateMetaTags(page, slug);
 
   if (!page) {
     pageTitle.textContent = "Missing page";
@@ -585,8 +644,9 @@ const loadPage = async () => {
   try {
     const source = await loadPageSource(page.file);
     const html = parseMarkdown(source.body, { allowHtml: source.allowHtml });
-    content.innerHTML = html || "<p>Empty page.</p>";
     pageTitle.textContent = source.title || pageTitle.textContent;
+    updateMetaTags(source, slug);
+    content.innerHTML = renderHEntry(html || "<p>Empty page.</p>", source, slug);
     setStatus("Loaded");
     loadWebmentions(page, slug);
   } catch (error) {
@@ -672,7 +732,6 @@ const loadManifest = async () => {
 
     siteTitle.textContent = manifest.site?.title || "Neo-CMS";
     siteTagline.textContent = manifest.site?.tagline || siteTagline.textContent;
-    siteFooter.textContent = manifest.site?.footer || "";
     indieweb.webmentionEndpoint =
       readHeadLink("webmention") || indieweb.webmentionEndpoint;
     const siteConfig = manifest.site || {};
@@ -680,6 +739,14 @@ const loadManifest = async () => {
     indieweb.siteUrl = siteConfig.url || indieweb.siteUrl;
     indieweb.webmentionEndpoint =
       indiewebConfig.webmentionEndpoint || indieweb.webmentionEndpoint;
+    const authorConfig = indiewebConfig.author || {};
+    indieweb.author.name  = authorConfig.name  || "";
+    indieweb.author.url   = authorConfig.url   || "";
+    indieweb.author.photo = authorConfig.photo || "";
+    const footerText = manifest.site?.footer || "";
+    const sep = footerText ? " " : "";
+    siteFooter.innerHTML = `${escapeHtml(footerText)}${sep}<a href="./feed.xml" rel="alternate" type="application/rss+xml">RSS Feed</a>`;
+    renderHCard();
     await loadPages();
   } catch (error) {
     pageTitle.textContent = "Manifest missing";

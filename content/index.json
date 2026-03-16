@@ -5,7 +5,12 @@
     "footer": "Built for Neocities. Edit content/index.json and front matter to change the menu.",
     "url": "https://neo-cms.neocities.org/",
     "indieweb": {
-      "webmentionEndpoint": "https://webmention.io/neo-cms.neocities.org/webmention"
+      "webmentionEndpoint": "https://webmention.io/neo-cms.neocities.org/webmention",
+      "author": {
+        "name": "Your Name",
+        "url": "https://neo-cms.neocities.org/",
+        "photo": ""
+      }
     }
   },
   "files": ["home.md", "how-it-works.md", "notes.md", "changelog.md"]

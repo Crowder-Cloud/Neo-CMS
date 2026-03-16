@@ -6,7 +6,20 @@ on:
       - main
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run tests
+        run: pytest tests/ -v
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     environment:
       name: neocities
@@ -33,6 +46,15 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
             handle.write(f"url={url}\n")
           PY
+
+      - name: Validate content
+        run: python scripts/validate.py
+
+      - name: Generate RSS feed
+        run: python scripts/generate_feed.py
+
+      - name: Generate sitemap
+        run: python scripts/generate_sitemap.py
 
       - name: Deploy to Neocities
         env:

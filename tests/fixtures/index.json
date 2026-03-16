@@ -1,0 +1,8 @@
+{
+  "site": {
+    "title": "Test Site",
+    "tagline": "A test tagline.",
+    "url": "https://example.com/"
+  },
+  "files": ["home.md", "post.md"]
+}
